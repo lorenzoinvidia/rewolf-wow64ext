@@ -19,9 +19,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+
 #pragma once
 
 #include <windows.h>
+#include <winternl.h>
 
 #ifndef STATUS_SUCCESS
 #   define STATUS_SUCCESS 0
@@ -63,12 +65,32 @@ struct _NT_TIB_T
     T Self;
 };
 
-template <class T>
-struct _CLIENT_ID
-{
-    T UniqueProcess;
-    T UniqueThread;
-};
+ template <class T>
+ struct _CLIENT_ID
+ {
+     T UniqueProcess;
+     T UniqueThread;
+ };
+
+typedef struct {
+   HANDLE UniqueProcess;
+   HANDLE UniqueThread;
+ } CLIENT_ID, *PCLIENT_ID;
+
+//typedef struct _UNICODE_STRING {
+//    USHORT Length;
+//    USHORT MaximumLength;
+//    PWSTR  Buffer;
+//} UNICODE_STRING, *PUNICODE_STRING;
+//
+//typedef struct _OBJECT_ATTRIBUTES {
+//    ULONG           Length;
+//    HANDLE          RootDirectory;
+//    PUNICODE_STRING ObjectName;
+//    ULONG           Attributes;
+//    PVOID           SecurityDescriptor;
+//    PVOID           SecurityQualityOfService;
+//}OBJECT_ATTRIBUTES;
 
 template <class T>
 struct _TEB_T_
@@ -371,4 +393,8 @@ extern "C"
 	__declspec(SPEC)BOOL __cdecl GetThreadContext64(HANDLE hThread, _CONTEXT64* lpContext);
 	__declspec(SPEC)BOOL __cdecl SetThreadContext64(HANDLE hThread, _CONTEXT64* lpContext);
 	__declspec(SPEC)VOID __cdecl SetLastErrorFromX64Call(DWORD64 status);
+    __declspec(SPEC)HANDLE __cdecl OpenProcess64(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId);
+    __declspec(SPEC)DWORD __cdecl SuspendThread64(HANDLE hThread);
+    __declspec(SPEC)DWORD __cdecl ResumeThread64(HANDLE hThread);
+    __declspec(SPEC)HANDLE __cdecl OpenThread64(DWORD dwDesiredAccess, BOOL bInheritHandle, PCLIENT_ID pcid);
 }

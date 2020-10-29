@@ -26,6 +26,12 @@
 #include "wow64ext.h"
 #include "CMemPtr.h"
 
+//#define DEBUG
+
+#ifdef DEBUG
+#include <stdio.h>
+#endif
+
 HANDLE g_heap;
 BOOL g_isWow64;
 
@@ -557,6 +563,149 @@ extern "C" __declspec(dllexport) BOOL __cdecl WriteProcessMemory64(HANDLE hProce
         return TRUE;
     }
 }
+
+
+// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/nf-ntddk-ntopenprocess
+extern "C" __declspec(dllexport) HANDLE __cdecl OpenProcess64(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId)
+{
+
+    HANDLE hProcess;
+    CLIENT_ID cid;
+    cid.UniqueProcess = (HANDLE)dwProcessId;
+    cid.UniqueThread = (HANDLE)0;
+    OBJECT_ATTRIBUTES oa;
+    oa.Length = sizeof(oa);
+    oa.RootDirectory = 0;
+    oa.ObjectName = 0;
+    oa.Attributes = 0;
+    oa.SecurityDescriptor = 0;
+    oa.SecurityQualityOfService = 0;
+
+    static DWORD64 gtc = 0;
+    if (0 == gtc)
+    {
+        gtc = GetProcAddress64(getNTDLL64(), "NtOpenProcess");
+#ifdef DEBUG       
+        printf("NtOpenProcess = %#llx\n",gtc);
+#endif //DEBUG
+        if (0 == gtc)return 0;
+        
+    }
+
+    DWORD64 ret = X64Call(gtc, 4,(DWORD64)&hProcess, (DWORD64)dwDesiredAccess, (DWORD64)&oa, (DWORD64)&cid);
+    if (STATUS_SUCCESS != ret)
+    {
+#ifdef DEBUG   
+        printf("NtOpenProcess failed with %#llx\n", ret);
+#endif //DEBUG
+        SetLastErrorFromX64Call(ret);
+        return FALSE;
+    }
+    else
+        return hProcess;
+}//OpenProcess64
+
+
+extern "C" __declspec(dllexport) HANDLE __cdecl OpenThread64(DWORD dwDesiredAccess, BOOL bInheritHandle, PCLIENT_ID pcid) {
+
+    /*CLIENT_ID cid;
+    cid.UniqueProcess = (HANDLE)0;
+    cid.UniqueThread = (HANDLE)dwThreadId;*/
+    
+    HANDLE hThread;
+    OBJECT_ATTRIBUTES oa;
+    oa.Length = sizeof(oa);
+    oa.RootDirectory = 0;
+    oa.ObjectName = 0;
+    oa.Attributes = 0;
+    oa.SecurityDescriptor = 0;
+    oa.SecurityQualityOfService = 0;
+
+    static DWORD64 gtc = 0;
+    if (0 == gtc)
+    {
+        gtc = GetProcAddress64(getNTDLL64(), "NtOpenThread");
+#ifdef DEBUG       
+        printf("NtOpenThread = %#llx\n", gtc);
+#endif //DEBUG
+        if (0 == gtc)return 0;
+
+    }
+
+    DWORD64 ret = X64Call(gtc, 4, (DWORD64)&hThread, (DWORD64)dwDesiredAccess, (DWORD64)&oa, (DWORD64)pcid);
+    if (STATUS_SUCCESS != ret)
+    {
+#ifdef DEBUG   
+        printf("NtOpenThread failed with %#llx\n", ret);
+#endif //DEBUG
+        SetLastErrorFromX64Call(ret);
+        return NULL;
+    }
+    else
+        return hThread;
+
+}//OpenThread64
+
+
+extern "C" __declspec(dllexport) DWORD __cdecl SuspendThread64(HANDLE hThread) {
+
+    
+    ULONG PreviousSuspendCount;
+
+    static DWORD64 gtc = 0;
+    if (0 == gtc)
+    {
+        gtc = GetProcAddress64(getNTDLL64(), "NtSuspendThread");
+#ifdef DEBUG       
+        printf("NtSuspendThread = %#llx\n", gtc);
+#endif //DEBUG
+        if (0 == gtc)return 0;
+
+    }
+
+    DWORD64 ret = X64Call(gtc, 2, (DWORD64)hThread, (DWORD64)&PreviousSuspendCount);
+    if (STATUS_SUCCESS != ret)
+    {
+#ifdef DEBUG   
+        printf("NtSuspendThread failed with %#llx\n", ret);
+#endif //DEBUG
+        SetLastErrorFromX64Call(ret);
+        return (DWORD)-1;
+    }
+    else
+        return PreviousSuspendCount;
+}//SuspendThread64
+
+
+extern "C" __declspec(dllexport) DWORD __cdecl ResumeThread64(HANDLE hThread) {
+
+
+    ULONG PreviousSuspendCount;
+
+    static DWORD64 gtc = 0;
+    if (0 == gtc)
+    {
+        gtc = GetProcAddress64(getNTDLL64(), "NtResumeThread");
+#ifdef DEBUG       
+        printf("NtResumeThread = %#llx\n", gtc);
+#endif //DEBUG
+        if (0 == gtc)return 0;
+
+    }
+
+    DWORD64 ret = X64Call(gtc, 2, (DWORD64)hThread, (DWORD64)&PreviousSuspendCount);
+    if (STATUS_SUCCESS != ret)
+    {
+#ifdef DEBUG   
+        printf("NtResumeThread failed with %#llx\n", ret);
+#endif //DEBUG
+        SetLastErrorFromX64Call(ret);
+        return (DWORD)-1;
+    }
+    else
+        return PreviousSuspendCount;
+}//ResumeThread64
+
 
 extern "C" __declspec(dllexport) BOOL __cdecl GetThreadContext64(HANDLE hThread, _CONTEXT64* lpContext)
 {
